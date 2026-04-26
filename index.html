@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#7c6fff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sleep Tracker">
+  <title>Sleep Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Dashboard ─────────────────────────────────────── -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <h1>🌙 Sleep Tracker</h1>
+      <button id="today-date" class="today-date-btn" aria-label="カレンダーを開く"></button>
+    </div>
+
+    <!-- Calendar popup -->
+    <div id="calendar-popup" class="calendar-popup">
+      <div class="cal-header">
+        <button class="cal-nav-btn" id="cal-prev">&#8249;</button>
+        <span id="cal-month-label"></span>
+        <button class="cal-nav-btn" id="cal-next">&#8250;</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+
+    <!-- Chart type tabs -->
+    <div class="chart-type-tabs">
+      <button class="chart-type-tab active" data-type="duration">睡眠時間</button>
+      <button class="chart-type-tab" data-type="bedtime">就寝/起床</button>
+      <button class="chart-type-tab" data-type="stages">ステージ</button>
+      <button class="chart-type-tab" data-type="score">スコア</button>
+      <button class="chart-type-tab" data-type="awake">覚醒回数</button>
+    </div>
+
+    <!-- Period tabs -->
+    <div class="chart-tabs">
+      <button class="chart-tab active" data-tab="week">週</button>
+      <button class="chart-tab" data-tab="month">月</button>
+      <button class="chart-tab" data-tab="year">年</button>
+    </div>
+
+    <!-- Navigation + Chart -->
+    <div class="chart-wrap">
+      <div class="chart-nav">
+        <button class="chart-nav-btn" id="dash-nav-prev" aria-label="前へ">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <span class="chart-nav-label" id="dash-nav-label"></span>
+        <button class="chart-nav-btn" id="dash-nav-next" aria-label="次へ" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+      <div id="dash-chart-wrapper" style="position:relative;width:100%;height:240px">
+        <canvas id="dash-chart"></canvas>
+      </div>
+      <div id="dash-no-data" style="display:none;text-align:center;padding:32px 0;color:var(--t3)">
+        <div style="font-size:32px;margin-bottom:8px">📊</div>
+        <div style="font-size:13px">この期間のデータがありません</div>
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">期間サマリ</div>
+      <div class="chart-summary">
+        <div class="chart-summary-item">
+          <div class="val" id="dash-sum-avg">--</div>
+          <div class="lbl" id="dash-sum-lbl1">平均</div>
+        </div>
+        <div class="chart-summary-item">
+          <div class="val" id="dash-sum-max">--</div>
+          <div class="lbl" id="dash-sum-lbl2">最長</div>
+        </div>
+        <div class="chart-summary-item">
+          <div class="val" id="dash-sum-min">--</div>
+          <div class="lbl" id="dash-sum-lbl3">最短</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Upload ─────────────────────────────────────────── -->
+  <div id="page-upload" class="page">
+    <div class="page-header">
+      <h1>スクショ追加</h1>
+    </div>
+
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" accept="image/*">
+      <div class="upload-icon">📱</div>
+      <div class="upload-title">Huawei Health スクショを選択</div>
+      <div class="upload-sub">タップして選択、またはドラッグ＆ドロップ<br>JPEG / PNG 対応</div>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">処理中…</div>
+    </div>
+
+    <!-- Extraction result -->
+    <div class="extract-result card" id="extract-result">
+      <div class="card-title">抽出結果 — 確認・修正してください</div>
+      <img class="extract-preview" id="extract-preview" src="" alt="preview">
+
+      <div class="extract-fields">
+        <div class="field-row">
+          <label>日付</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-date" type="date" placeholder="YYYY-MM-DD">
+        </div>
+        <div class="field-row">
+          <label>就寝時刻</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-bedtime" type="time" placeholder="例: 23:30">
+        </div>
+        <div class="field-row">
+          <label>起床時刻</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-wake" type="time" placeholder="例: 07:00">
+        </div>
+        <div class="field-row">
+          <label>睡眠時間</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-duration" type="text" placeholder="例: 7h 30m">
+        </div>
+        <div class="field-row">
+          <label>深い睡眠</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-deep" type="text" placeholder="例: 1h 20m">
+        </div>
+        <div class="field-row">
+          <label>浅い睡眠</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-light" type="text" placeholder="例: 4h 10m">
+        </div>
+        <div class="field-row">
+          <label>レム睡眠</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-rem" type="text" placeholder="例: 1h 30m">
+        </div>
+        <div class="field-row">
+          <label>覚醒回数</label>
+          <input class="field-input" style="width:100%;box-sizing:border-box" id="field-awake-count" type="number" min="0" placeholder="例: 3">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="save-btn" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </svg>
+        保存する
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Data ───────────────────────────────────────────── -->
+  <div id="page-data" class="page">
+    <div class="page-header">
+      <h1>データ管理</h1>
+      <span id="record-count">0件</span>
+    </div>
+
+    <div class="sleep-list" id="all-list">
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <p>データがありません</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Settings ──────────────────────────────────────── -->
+  <div id="page-settings" class="page">
+    <div class="page-header">
+      <h1>設定</h1>
+    </div>
+
+    <div class="settings-section">
+      <h3>Gemini API</h3>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <div class="settings-row-title" style="font-size:14px;font-weight:600">APIキー</div>
+            <div class="settings-row-sub" style="font-size:12px;color:var(--t2)">Google AI Studio で取得</div>
+          </div>
+          <span id="api-status" class="badge badge-red">未設定</span>
+        </div>
+        <input type="password" class="api-key-input" id="api-key-input" placeholder="AIza...">
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-secondary btn-sm" id="test-api-btn">テスト</button>
+          <button class="btn btn-secondary btn-sm" id="list-models-btn">モデル確認</button>
+        </div>
+        <p style="font-size:11px;color:var(--t2);margin-top:10px;line-height:1.5">
+          APIキーは端末内にのみ保存されます。<br>
+          取得先: <strong style="color:var(--accent-l)">aistudio.google.com/app/apikey</strong>
+        </p>
+
+        <hr class="divider">
+        <div style="margin-top:4px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">使用モデル</div>
+          <select class="field-input" style="width:100%;box-sizing:border-box" id="model-select" style="width:100%">
+            <optgroup label="✅ 無料枠で動作確認済み">
+              <option value="gemini-flash-lite-latest">gemini-flash-lite-latest（推奨）</option>
+              <option value="gemma-3-27b-it">gemma-3-27b-it</option>
+              <option value="gemma-3-12b-it">gemma-3-12b-it</option>
+            </optgroup>
+            <optgroup label="Gemini 2.5系（新）">
+              <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
+              <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview-03-25</option>
+            </optgroup>
+            <optgroup label="Gemini 2.0系">
+              <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+              <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+            </optgroup>
+            <optgroup label="Gemini 1.5系">
+              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+            </optgroup>
+          </select>
+          <div id="model-list-result" style="margin-top:8px;font-size:11px;color:var(--t2);display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>アップロード設定</h3>
+      <div class="card">
+        <div class="settings-row" style="background:none;border:none;padding:0">
+          <div class="settings-row-icon">⚡</div>
+          <div class="settings-row-content">
+            <div class="settings-row-title">自動保存</div>
+            <div class="settings-row-sub">抽出完了後に確認なしで自動保存する</div>
+          </div>
+          <div class="settings-row-action">
+            <label style="display:flex;align-items:center;cursor:pointer">
+              <input type="checkbox" id="autosave-toggle" style="display:none">
+              <span id="autosave-track" style="
+                width:44px;height:24px;border-radius:12px;background:var(--t3);
+                position:relative;transition:background .2s;display:block;flex-shrink:0">
+                <span id="autosave-thumb" style="
+                  position:absolute;top:3px;left:3px;width:18px;height:18px;
+                  border-radius:9px;background:#fff;transition:left .2s;display:block">
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>データ管理</h3>
+      <div class="card">
+        <div class="settings-row" style="margin-bottom:10px;background:none;border:none;padding:0">
+          <div class="settings-row-icon">📤</div>
+          <div class="settings-row-content">
+            <div class="settings-row-title">エクスポート</div>
+            <div class="settings-row-sub">全データをJSONファイルで保存</div>
+          </div>
+          <div class="settings-row-action">
+            <button class="btn btn-secondary btn-sm" id="export-btn">保存</button>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="settings-row" style="background:none;border:none;padding:0">
+          <div class="settings-row-icon">📥</div>
+          <div class="settings-row-content">
+            <div class="settings-row-title">インポート</div>
+            <div class="settings-row-sub">JSONファイルからデータを復元</div>
+          </div>
+          <div class="settings-row-action">
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+              読込
+              <input type="file" id="import-input" accept=".json,application/json" style="display:none">
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>データ修復</h3>
+      <div class="card">
+        <div class="settings-row" style="background:none;border:none;padding:0">
+          <div class="settings-row-icon">🔧</div>
+          <div class="settings-row-content">
+            <div class="settings-row-title">日付の年を修正</div>
+            <div class="settings-row-sub">Gemmaが誤って推定した年を今年/昨年に修正します</div>
+          </div>
+          <div class="settings-row-action">
+            <button class="btn btn-secondary btn-sm" id="fix-year-btn">修正</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>危険な操作</h3>
+      <div class="card">
+        <div class="settings-row" style="background:none;border:none;padding:0">
+          <div class="settings-row-icon">🗑️</div>
+          <div class="settings-row-content">
+            <div class="settings-row-title">全データを削除</div>
+            <div class="settings-row-sub">すべての睡眠記録を削除します</div>
+          </div>
+          <div class="settings-row-action">
+            <button class="btn btn-danger btn-sm" id="clear-btn">削除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:20px 0;color:var(--t3);font-size:12px">
+      Sleep Tracker v1.0 — Powered by Gemini
+    </div>
+  </div>
+
+  <!-- ── Bottom Navigation ──────────────────────────────── -->
+  <nav>
+    <button class="nav-btn active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      ホーム
+    </button>
+    <button class="nav-btn" data-page="upload">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      追加
+    </button>
+    <button class="nav-btn" data-page="data">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+      </svg>
+      データ
+    </button>
+    <button class="nav-btn" data-page="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+      設定
+    </button>
+  </nav>
+
+  <!-- ── Edit Modal ────────────────────────────────────── -->
+  <div class="modal-backdrop" id="edit-modal">
+    <div class="modal" style="max-width:360px;width:90%">
+      <div class="modal-title">記録を編集</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div>
+          <label style="font-size:12px;color:var(--t2)">日付</label>
+          <input id="edit-date" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="YYYY-MM-DD" style="margin-top:4px">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:12px;color:var(--t2)">就寝時間</label>
+            <input id="edit-bedtime" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="HH:MM" style="margin-top:4px">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--t2)">起床時間</label>
+            <input id="edit-wake" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="HH:MM" style="margin-top:4px">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--t2)">合計睡眠（例: 7h 30m）</label>
+          <input id="edit-duration" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="7h 30m" style="margin-top:4px">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:12px;color:var(--t2)">深い睡眠</label>
+            <input id="edit-deep" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="1h 20m" style="margin-top:4px">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--t2)">レム睡眠</label>
+            <input id="edit-rem" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="1h 40m" style="margin-top:4px">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:12px;color:var(--t2)">浅い睡眠</label>
+            <input id="edit-light" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="4h 0m" style="margin-top:4px">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--t2)">覚醒</label>
+            <input id="edit-awake" type="text" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="10m" style="margin-top:4px">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--t2)">覚醒回数</label>
+          <input id="edit-awake-count" type="number" min="0" class="field-input" style="width:100%;box-sizing:border-box;margin-top:4px" placeholder="例: 3">
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn btn-secondary" id="edit-modal-cancel">キャンセル</button>
+        <button class="btn" id="edit-modal-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Confirm Modal ──────────────────────────────────── -->
+  <div class="modal-backdrop" id="confirm-modal">
+    <div class="modal">
+      <div class="modal-title" id="modal-title">確認</div>
+      <p id="modal-body" style="font-size:14px;color:var(--t2);line-height:1.5"></p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="modal-cancel">キャンセル</button>
+        <button class="btn btn-danger" id="modal-confirm">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ──────────────────────────────────────────── -->
+  <div id="toast"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/gemini.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

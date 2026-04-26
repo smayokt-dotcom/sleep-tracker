@@ -1,0 +1,9 @@
+# Claude Code
+.claude/
+
+# Sample screenshots (large files, not needed for deployment)
+sample/
+
+# OS
+.DS_Store
+Thumbs.db
