@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initDashChartTabs(); // dashboard tabs
   initCalendar();      // date / calendar popup
   initEditModal();
+  _initConfirmModal();
   renderDashboard();
   initUpload();
   initSettings();
@@ -944,21 +945,29 @@ function confirmDelete(id) {
 }
 
 // ── Confirm Modal ──────────────────────────────────────────
-function showConfirmModal(title, body, onConfirm, confirmLabel = '削除する') {
-  const modal = document.getElementById('confirm-modal');
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').textContent  = body;
-  modal.classList.add('show');
+// Single callback variable — no listener accumulation possible
+let _confirmCb = null;
 
+function _initConfirmModal() {
+  const modal      = document.getElementById('confirm-modal');
   const confirmBtn = document.getElementById('modal-confirm');
   const cancelBtn  = document.getElementById('modal-cancel');
-  confirmBtn.textContent = confirmLabel;
 
-  const close = () => modal.classList.remove('show');
-  const handleConfirm = () => { onConfirm(); close(); confirmBtn.removeEventListener('click', handleConfirm); cancelBtn.removeEventListener('click', close); };
-  confirmBtn.addEventListener('click', handleConfirm);
+  const close = () => { modal.classList.remove('show'); _confirmCb = null; };
+
+  confirmBtn.addEventListener('click', () => {
+    if (_confirmCb) { const cb = _confirmCb; close(); cb(); }
+  });
   cancelBtn.addEventListener('click', close);
-  modal.addEventListener('click', e => { if (e.target === modal) close(); }, { once: true });
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+}
+
+function showConfirmModal(title, body, onConfirm, confirmLabel = '削除する') {
+  document.getElementById('modal-title').textContent   = title;
+  document.getElementById('modal-body').textContent    = body;
+  document.getElementById('modal-confirm').textContent = confirmLabel;
+  _confirmCb = onConfirm;
+  document.getElementById('confirm-modal').classList.add('show');
 }
 
 // ── Toast ──────────────────────────────────────────────────
