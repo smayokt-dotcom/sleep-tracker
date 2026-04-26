@@ -2,7 +2,7 @@
   "name": "Sleep Tracker",
   "short_name": "SleepTracker",
   "description": "Huawei Health スクショから睡眠データを自動抽出・可視化",
-  "start_url": "/",
+  "start_url": "/sleep-tracker/",
   "display": "standalone",
   "background_color": "#0a0a14",
   "theme_color": "#7c6fff",

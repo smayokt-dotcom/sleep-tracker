@@ -45,7 +45,7 @@ const CHART_CTX_DASH = {
 // ── Init ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
   initNav();
   initDashChartTabs(); // dashboard tabs
