@@ -227,7 +227,8 @@ function setExtractFields(data) {
   set('field-deep',        data?.deep_sleep_min  != null ? formatDuration(data.deep_sleep_min)  : '');
   set('field-light',       data?.light_sleep_min != null ? formatDuration(data.light_sleep_min) : '');
   set('field-rem',         data?.rem_sleep_min   != null ? formatDuration(data.rem_sleep_min)   : '');
-  set('field-awake-count', data?.awake_count != null ? data.awake_count : '');
+  set('field-awake-count',  data?.awake_count  != null ? data.awake_count  : '');
+  set('field-sleep-score',  data?.sleep_score  != null ? data.sleep_score  : '');
 }
 
 // 保存ボタンから呼ばれる（手動保存）
@@ -258,7 +259,8 @@ function buildRecordFromFields() {
     deep_sleep_min:     parseHHMM(document.getElementById('field-deep').value),
     light_sleep_min:    parseHHMM(document.getElementById('field-light').value),
     rem_sleep_min:      parseHHMM(document.getElementById('field-rem').value),
-    awake_count:        parseInt(document.getElementById('field-awake-count').value) || null,
+    awake_count:        parseInt(document.getElementById('field-awake-count').value)  || null,
+    sleep_score:        parseInt(document.getElementById('field-sleep-score').value)  || null,
     awake_min:          null,
     notes:              null,
   };
@@ -854,7 +856,8 @@ function openEditModal(id) {
   document.getElementById('edit-rem').value      = record.rem_sleep_min      != null ? formatDuration(record.rem_sleep_min)      : '';
   document.getElementById('edit-light').value    = record.light_sleep_min    != null ? formatDuration(record.light_sleep_min)    : '';
   document.getElementById('edit-awake').value       = record.awake_min   != null ? formatDuration(record.awake_min) : '';
-  document.getElementById('edit-awake-count').value = record.awake_count != null ? record.awake_count : '';
+  document.getElementById('edit-awake-count').value  = record.awake_count  != null ? record.awake_count  : '';
+  document.getElementById('edit-sleep-score').value  = record.sleep_score  != null ? record.sleep_score  : '';
 
   document.getElementById('edit-modal').classList.add('show');
 }
@@ -896,7 +899,8 @@ function commitEdit() {
     light_sleep_min:    parseHHMM(document.getElementById('edit-light').value) ?? current.light_sleep_min,
     rem_sleep_min:      parseHHMM(document.getElementById('edit-rem').value)   ?? current.rem_sleep_min,
     awake_min:          parseHHMM(document.getElementById('edit-awake').value) ?? current.awake_min,
-    awake_count:        parseInt(document.getElementById('edit-awake-count').value) || current.awake_count || null,
+    awake_count:        parseInt(document.getElementById('edit-awake-count').value)  || current.awake_count  || null,
+    sleep_score:        parseInt(document.getElementById('edit-sleep-score').value)  || current.sleep_score  || null,
   };
 
   // If the new date conflicts with a DIFFERENT record, ask to overwrite

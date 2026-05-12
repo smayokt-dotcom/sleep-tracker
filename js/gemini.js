@@ -20,18 +20,20 @@ Fields:
 - date: "YYYY-MM-DD". IMPORTANT: if the screenshot shows only month/day (e.g. "4/23" or "4月23日"), use the year ${year} UNLESS the date would be in the future, in which case use ${year - 1}. Never guess a year more than 2 years in the past.
 - bedtime: "HH:MM" 24-hour (when the user fell asleep).
 - wake_time: "HH:MM" 24-hour (when the user woke up).
-- sleep_duration_min: total sleep minutes as integer.
-- deep_sleep_min: deep sleep minutes or null.
-- light_sleep_min: light sleep minutes or null.
-- rem_sleep_min: REM sleep minutes or null.
+- sleep_duration_min: NIGHTTIME sleep duration in minutes as integer. Read ONLY from the section labeled "夜間の睡眠" — the time shown directly below that heading in "X時間XX分" format (e.g. "6時間38分" → 398). Do NOT use "合計睡眠時間" (which includes naps) or any other total.
+- deep_sleep_min: deep sleep minutes or null. Look for "深い睡眠" with a duration like "2時間28分".
+- light_sleep_min: light (shallow) sleep minutes or null. Look for "浅い睡眠" with a duration like "2時間51分".
+- rem_sleep_min: REM sleep minutes or null. Look for "レム睡眠" with a duration like "1時間19分".
 - awake_min: awake-during-night minutes or null.
 - awake_count: number of times the user woke up during the night as integer, or null. Look for values like "目覚め 3回", "覚醒回数", "Awakenings", "Woke up X times".
+- sleep_score: the sleep score shown in the lower-left area of the screen as an integer, or null. It appears as a large number followed by "点" (e.g. "82点" → 82, "75点" → 75). Do NOT confuse with "深い睡眠の持続性" sub-scores or percentages.
 
 Rules:
 - 24-hour format for times. Bedtime after midnight stays as-is (e.g. "00:30").
+- For sleep_duration_min, always prefer the "夜間の睡眠" value, never the "合計睡眠時間" total.
 - Return ONLY the JSON object, no markdown, no explanation.
 
-Example: {"date":"${year}-03-15","bedtime":"23:20","wake_time":"07:05","sleep_duration_min":465,"deep_sleep_min":98,"light_sleep_min":267,"rem_sleep_min":100,"awake_min":12,"awake_count":2}
+Example: {"date":"${year}-03-15","bedtime":"23:20","wake_time":"07:05","sleep_duration_min":398,"deep_sleep_min":98,"light_sleep_min":267,"rem_sleep_min":100,"awake_min":12,"awake_count":2,"sleep_score":82}
 `.trim();
 }
 
@@ -148,6 +150,7 @@ function normalizeExtracted(raw) {
   r.rem_sleep_min      = toIntOrNull(raw.rem_sleep_min);
   r.awake_min          = toIntOrNull(raw.awake_min);
   r.awake_count        = toIntOrNull(raw.awake_count);
+  r.sleep_score        = toIntOrNull(raw.sleep_score);
 
   // Derive duration from times if not provided
   if (!r.sleep_duration_min && r.bedtime && r.wake_time) {
