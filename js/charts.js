@@ -378,7 +378,7 @@ const Charts = {
 
     const avg = _avgOf(scores.filter(v => v != null));
     const avgDs = _makeAvgDs(labels.length, avg,
-      avg != null ? Math.round(avg) + 'pt' : null, C.yellow);
+      avg != null ? Math.round(avg) + '点' : null, C.yellow);
 
     this._instances[canvasId] = new Chart(ctx, {
       type: 'line',
@@ -410,7 +410,7 @@ const Charts = {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: ctx => ctx.raw != null ? ` スコア: ${ctx.raw}pt` : '',
+              label: ctx => ctx.raw != null ? ` スコア: ${ctx.raw}点` : '',
             }
           }
         },
@@ -418,7 +418,7 @@ const Charts = {
           x: { grid: baseGridOpts(), ticks: baseTickOpts() },
           y: {
             grid: baseGridOpts(),
-            ticks: { ...baseTickOpts(), callback: v => `${v}pt` },
+            ticks: { ...baseTickOpts(), callback: v => `${v}点` },
             min: 0,
             max: 100,
           }

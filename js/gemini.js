@@ -29,7 +29,7 @@ Fields:
 - rem_sleep_min: REM sleep minutes or null. Look for "レム睡眠" with a duration like "1時間19分".
 - awake_min: awake-during-night minutes or null.
 - awake_count: number of times the user woke up during the night as integer, or null. Look for values like "目覚め 3回", "覚醒回数", "Awakenings", "Woke up X times".
-- sleep_score: the sleep score shown in the lower-left area of the screen as an integer, or null. It appears as a large number followed by "点" (e.g. "82点" → 82, "75点" → 75). Do NOT confuse with "深い睡眠の持続性" sub-scores or percentages.
+- sleep_score: the overall sleep score as an integer, or null. It is displayed as a large bold number with "点" immediately after it (e.g. "82点" → 82, "75点" → 75). It typically appears in the lower portion of the screen, often accompanied by star ratings and text like "XX%のユーザーより上". IMPORTANT: do NOT use "深い睡眠の持続性: XX点" or any sub-category score — only the main top-level score. If you see a number like "82" displayed prominently with "点" next to it, that is the value to extract.
 
 Rules:
 - 24-hour format for times. Bedtime after midnight stays as-is (e.g. "00:30").
