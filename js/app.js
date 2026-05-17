@@ -120,7 +120,7 @@ function buildStageBar(record) {
 }
 
 function buildSleepItem(r) {
-  const score = sleepScore(r);
+  const score = r.sleep_score ?? sleepScore(r);
   const id = r.id;
   return `
     <div class="sleep-item" data-id="${id}">
@@ -517,7 +517,7 @@ function _renderChartsInner(ctx, st) {
       const d2 = new Date(range.from + 'T00:00:00');
       d2.setDate(d2.getDate() + i);
       const rec = records.find(r => r.date === toYMD(d2));
-      return rec ? (sleepScore(rec) ?? null) : null;
+      return rec ? (rec.sleep_score ?? sleepScore(rec) ?? null) : null;
     });
     awakeCounts = labels.map((_, i) => {
       const d2 = new Date(range.from + 'T00:00:00');
@@ -531,7 +531,7 @@ function _renderChartsInner(ctx, st) {
     scores = labels.map((_, i) => {
       const dd = String(i + 1).padStart(2, '0');
       const rec = records.find(r => r.date === `${range.year}-${String(range.month+1).padStart(2,'0')}-${dd}`);
-      return rec ? (sleepScore(rec) ?? null) : null;
+      return rec ? (rec.sleep_score ?? sleepScore(rec) ?? null) : null;
     });
     awakeCounts = labels.map((_, i) => {
       const dd = String(i + 1).padStart(2, '0');
@@ -550,7 +550,7 @@ function _renderChartsInner(ctx, st) {
       const last = new Date(range.year, m + 1, 0).getDate();
       const to   = `${range.year}-${String(m+1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
       const recs = records.filter(r => r.date >= from && r.date <= to);
-      const ss   = recs.map(r => sleepScore(r)).filter(v => v != null);
+      const ss   = recs.map(r => r.sleep_score ?? sleepScore(r)).filter(v => v != null);
       return ss.length ? Math.round(ss.reduce((a,b)=>a+b,0)/ss.length) : null;
     });
   }
@@ -652,7 +652,7 @@ function _renderChartsInner(ctx, st) {
     sumLbl3 = '浅い平均';  sumVal3 = avg(lightArr) != null ? formatDuration(avg(lightArr)) : '--';
 
   } else if (type === 'score') {
-    const ss = rangeRecs.map(r => sleepScore(r)).filter(v => v != null);
+    const ss = rangeRecs.map(r => r.sleep_score ?? sleepScore(r)).filter(v => v != null);
     const avg = ss.length ? Math.round(_avg(ss)) : null;
     sumLbl1 = '平均';  sumVal1 = avg           != null ? avg           + '点' : '--';
     sumLbl2 = '最高';  sumVal2 = _max(ss)      != null ? _max(ss)      + '点' : '--';
