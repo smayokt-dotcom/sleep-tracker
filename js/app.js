@@ -13,6 +13,10 @@ const State = {
   dashWeekOffset:  0,
   dashMonthOffset: 0,
   dashYearOffset:  0,
+  // Sub-unit shifts from swipe (week/month: days; year: months)
+  dashWeekShift:   0,
+  dashMonthShift:  0,
+  dashYearShift:   0,
   extractedData: null,
   uploadedFile:  null,
 };
@@ -375,6 +379,10 @@ function initDashChartTabs() {
       document.querySelectorAll('#page-dashboard .chart-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       State.dashChartTab = btn.dataset.tab;
+      // Clear sub-unit shifts on tab change so the new tab starts at a clean unit boundary
+      State.dashWeekShift = 0;
+      State.dashMonthShift = 0;
+      State.dashYearShift = 0;
       renderDashCharts();
     };
   });
@@ -389,17 +397,88 @@ function initDashChartTabs() {
   });
 
   document.getElementById('dash-nav-prev').onclick = () => {
-    if (State.dashChartTab === 'week')  State.dashWeekOffset--;
-    if (State.dashChartTab === 'month') State.dashMonthOffset--;
-    if (State.dashChartTab === 'year')  State.dashYearOffset--;
+    // Arrow = step by unit (week/month/year). Clear sub-unit shift for clean jumps.
+    if (State.dashChartTab === 'week')  { State.dashWeekOffset--;  State.dashWeekShift  = 0; }
+    if (State.dashChartTab === 'month') { State.dashMonthOffset--; State.dashMonthShift = 0; }
+    if (State.dashChartTab === 'year')  { State.dashYearOffset--;  State.dashYearShift  = 0; }
     renderDashCharts();
   };
   document.getElementById('dash-nav-next').onclick = () => {
-    if (State.dashChartTab === 'week'  && State.dashWeekOffset  < 0) State.dashWeekOffset++;
-    if (State.dashChartTab === 'month' && State.dashMonthOffset < 0) State.dashMonthOffset++;
-    if (State.dashChartTab === 'year'  && State.dashYearOffset  < 0) State.dashYearOffset++;
+    if (document.getElementById('dash-nav-next').disabled) return;
+    if (State.dashChartTab === 'week')  { State.dashWeekOffset++;  State.dashWeekShift  = 0; }
+    if (State.dashChartTab === 'month') { State.dashMonthOffset++; State.dashMonthShift = 0; }
+    if (State.dashChartTab === 'year')  { State.dashYearOffset++;  State.dashYearShift  = 0; }
     renderDashCharts();
   };
+
+  attachDashSwipe();
+}
+
+// ── Touch swipe handler for the dashboard chart ────────────
+function attachDashSwipe() {
+  const el = document.getElementById('dash-chart-wrapper');
+  if (!el || el._swipeAttached) return;
+  el._swipeAttached = true;
+
+  let startX = 0, startY = 0, lastAppliedSteps = 0, locked = null, active = false;
+
+  const barCount = () => State.dashChartTab === 'year' ? 12 : (State.dashChartTab === 'week' ? 7 : 30);
+  const barWidth = () => el.clientWidth / barCount();
+
+  // dir: -1 = newer (forward), +1 = older (back)
+  const tryShift = (dir) => {
+    const t = State.dashChartTab;
+    const offKey   = t === 'week' ? 'dashWeekOffset' : t === 'month' ? 'dashMonthOffset' : 'dashYearOffset';
+    const shiftKey = t === 'week' ? 'dashWeekShift'  : t === 'month' ? 'dashMonthShift'  : 'dashYearShift';
+
+    // dir=-1 → newer: check we wouldn't push range.to past today
+    if (dir < 0) {
+      const probe = getDashRange(t, State[offKey], State[shiftKey] + 1);
+      const todayYMD = toYMD(new Date());
+      if (probe.to > todayYMD) return false;
+      State[shiftKey] += 1;
+    } else {
+      State[shiftKey] -= 1;
+    }
+    renderDashCharts();
+    return true;
+  };
+
+  el.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    startX = t.clientX; startY = t.clientY;
+    lastAppliedSteps = 0; locked = null; active = true;
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    if (!active) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    if (locked === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        locked = Math.abs(dx) > Math.abs(dy) * 1.3 ? 'h' : 'v';
+      }
+    }
+    if (locked !== 'h') return;
+    if (e.cancelable) e.preventDefault();
+
+    const bw = barWidth() || 40;
+    // dx > 0 (swipe right) → older → positive "steps back"
+    const steps = Math.trunc(dx / bw);
+    const delta = steps - lastAppliedSteps;
+    if (delta === 0) return;
+    for (let i = 0; i < Math.abs(delta); i++) {
+      // delta > 0 means more "older" steps (dir = +1)
+      const ok = tryShift(delta > 0 ? 1 : -1);
+      if (!ok) break;
+    }
+    lastAppliedSteps = steps;
+  }, { passive: false });
+
+  el.addEventListener('touchend',   () => { active = false; }, { passive: true });
+  el.addEventListener('touchcancel',() => { active = false; }, { passive: true });
 }
 
 function renderChartPage() {
@@ -441,6 +520,9 @@ function _jumpToLatest(isMain) {
     State.dashMonthOffset = monthOffset;
     State.dashYearOffset  = yearOffset;
     State.dashWeekOffset  = weekOffset;
+    State.dashWeekShift   = 0;
+    State.dashMonthShift  = 0;
+    State.dashYearShift   = 0;
     if (spanMonths >= 1 && State.dashChartTab === 'week') {
       State.dashChartTab = 'month';
       document.querySelectorAll('#page-dashboard .chart-tab').forEach(b => {
@@ -474,9 +556,13 @@ function renderCharts() {
 
 function renderDashCharts() {
   try {
+    const t = State.dashChartTab;
+    const offset = t === 'week' ? State.dashWeekOffset : t === 'month' ? State.dashMonthOffset : State.dashYearOffset;
+    const shift  = t === 'week' ? State.dashWeekShift  : t === 'month' ? State.dashMonthShift  : State.dashYearShift;
     _renderChartsInner(CHART_CTX_DASH, {
-      tab: State.dashChartTab, type: State.dashChartType,
+      tab: t, type: State.dashChartType,
       weekOffset: State.dashWeekOffset, monthOffset: State.dashMonthOffset, yearOffset: State.dashYearOffset,
+      offset, shift, useSliding: true,
     });
   } catch (err) {
     console.error('Dash chart render error:', err);
@@ -488,8 +574,12 @@ function _renderChartsInner(ctx, st) {
   const tab     = st.tab;
   const type    = st.type;
 
+  // Sliding-window range (used by the dashboard); fall back to legacy unit ranges otherwise.
   let range, label;
-  if (tab === 'week') {
+  if (st.useSliding) {
+    range = getDashRange(tab, st.offset, st.shift);
+    label = range.label;
+  } else if (tab === 'week') {
     const r = getWeekRange(st.weekOffset);
     range = r; label = r.label;
   } else if (tab === 'month') {
@@ -501,18 +591,75 @@ function _renderChartsInner(ctx, st) {
   }
 
   document.getElementById(ctx.navLabel).textContent = label;
-  document.getElementById(ctx.navNext).disabled = (
-    (tab === 'week'  && st.weekOffset  >= 0) ||
-    (tab === 'month' && st.monthOffset >= 0) ||
-    (tab === 'year'  && st.yearOffset  >= 0)
-  );
+  const todayYMD = toYMD(new Date());
+  document.getElementById(ctx.navNext).disabled = st.useSliding
+    ? (range.to >= todayYMD)
+    : (
+        (tab === 'week'  && st.weekOffset  >= 0) ||
+        (tab === 'month' && st.monthOffset >= 0) ||
+        (tab === 'year'  && st.yearOffset  >= 0)
+      );
 
   const rangeRecs = Storage.getByDateRange(range.from, range.to);
 
   // Build datasets
   let labels, values, bedtimes, wakeTimes, deep, light, rem, awake, scores, awakeCounts, napValues;
 
-  if (tab === 'week') {
+  if (st.useSliding) {
+    labels = buildDashLabels(range);
+    const findRec = ymd => records.find(r => r.date === ymd);
+    const _avgFld = (recs, fld) => {
+      const vs = recs.map(r => r[fld]).filter(v => v != null);
+      return vs.length ? Math.round(vs.reduce((a,b)=>a+b,0)/vs.length) : null;
+    };
+
+    if (tab === 'year') {
+      values      = eachMonthOfRange(range, (f,t) => _avgFld(records.filter(r => r.date >= f && r.date <= t), 'sleep_duration_min'));
+      bedtimes    = eachMonthOfRange(range, (f,t) => {
+        const recs = records.filter(r => r.date >= f && r.date <= t);
+        const dec  = recs.map(r => toDecimalHour(r.bedtime)).filter(v => v != null);
+        return dec.length ? dec.reduce((a,b)=>a+b,0)/dec.length : null;
+      });
+      wakeTimes   = eachMonthOfRange(range, (f,t) => {
+        const recs = records.filter(r => r.date >= f && r.date <= t);
+        const dec  = recs.map(r => toDecimalHour(r.wake_time)).filter(v => v != null);
+        return dec.length ? dec.reduce((a,b)=>a+b,0)/dec.length : null;
+      });
+      deep  = eachMonthOfRange(range, (f,t) => _avgFld(records.filter(r => r.date >= f && r.date <= t), 'deep_sleep_min'));
+      light = eachMonthOfRange(range, (f,t) => _avgFld(records.filter(r => r.date >= f && r.date <= t), 'light_sleep_min'));
+      rem   = eachMonthOfRange(range, (f,t) => _avgFld(records.filter(r => r.date >= f && r.date <= t), 'rem_sleep_min'));
+      awake = eachMonthOfRange(range, (f,t) => _avgFld(records.filter(r => r.date >= f && r.date <= t), 'awake_min'));
+      scores = eachMonthOfRange(range, (f,t) => {
+        const recs = records.filter(r => r.date >= f && r.date <= t);
+        const ss   = recs.map(r => r.sleep_score ?? sleepScore(r)).filter(v => v != null);
+        return ss.length ? Math.round(ss.reduce((a,b)=>a+b,0)/ss.length) : null;
+      });
+      awakeCounts = eachMonthOfRange(range, (f,t) => {
+        const recs = records.filter(r => r.date >= f && r.date <= t);
+        const ac   = recs.map(r => r.awake_count).filter(v => v != null);
+        return ac.length ? +(ac.reduce((a,b)=>a+b,0)/ac.length).toFixed(1) : null;
+      });
+      napValues = eachMonthOfRange(range, (f,t) => {
+        const recs = records.filter(r => r.date >= f && r.date <= t);
+        const naps = recs.map(r => r.nap_min).filter(v => v != null && v > 0);
+        return naps.length ? Math.round(naps.reduce((a,b)=>a+b,0)/naps.length) : null;
+      });
+    } else {
+      values      = eachDayOfRange(range, ymd => findRec(ymd)?.sleep_duration_min ?? null);
+      bedtimes    = eachDayOfRange(range, ymd => findRec(ymd)?.bedtime   ?? null);
+      wakeTimes   = eachDayOfRange(range, ymd => findRec(ymd)?.wake_time ?? null);
+      deep        = eachDayOfRange(range, ymd => findRec(ymd)?.deep_sleep_min  ?? null);
+      light       = eachDayOfRange(range, ymd => findRec(ymd)?.light_sleep_min ?? null);
+      rem         = eachDayOfRange(range, ymd => findRec(ymd)?.rem_sleep_min   ?? null);
+      awake       = eachDayOfRange(range, ymd => findRec(ymd)?.awake_min       ?? null);
+      scores      = eachDayOfRange(range, ymd => {
+        const rec = findRec(ymd);
+        return rec ? (rec.sleep_score ?? sleepScore(rec) ?? null) : null;
+      });
+      awakeCounts = eachDayOfRange(range, ymd => findRec(ymd)?.awake_count ?? null);
+      napValues   = eachDayOfRange(range, ymd => findRec(ymd)?.nap_min     ?? null);
+    }
+  } else if (tab === 'week') {
     const d = buildWeekData(records, range.from);
     ({ labels, values, bedtimes, wakeTimes } = d);
     scores = labels.map((_, i) => {
@@ -557,7 +704,6 @@ function _renderChartsInner(ctx, st) {
     deep = d.deep; light = d.light; rem = d.rem; awake = d.awake;
     bedtimes = d.avgBedtimes; wakeTimes = d.avgWakeTimes;
     awakeCounts = d.avgAwakeCounts;
-    // 年: 月ごとの平均スコア・平均仮眠
     scores = labels.map((_, m) => {
       const from = `${range.year}-${String(m+1).padStart(2,'0')}-01`;
       const last = new Date(range.year, m + 1, 0).getDate();
@@ -592,6 +738,9 @@ function _renderChartsInner(ctx, st) {
   } else if (type === 'stages') {
     if (tab === 'year') {
       Charts.renderStages(ctx.canvas, labels, deep, light, rem, awake);
+    } else if (st.useSliding) {
+      // sliding-window path already built deep/light/rem per day
+      Charts.renderStages(ctx.canvas, labels, deep, light, rem, []);
     } else {
       const d_arr = values.map((_, i) => {
         const rec = rangeRecs.find(r => {
@@ -1166,6 +1315,9 @@ function jumpToDateFromCal(dateStr) {
   const tgtMonday  = getMondayOf(target);
   State.dashChartTab    = 'week';
   State.dashWeekOffset  = Math.round((tgtMonday - nowMonday) / msPerWeek);
+  State.dashWeekShift   = 0;
+  State.dashMonthShift  = 0;
+  State.dashYearShift   = 0;
 
   // Update tab UI
   document.querySelectorAll('#page-dashboard .chart-tab').forEach(b => {

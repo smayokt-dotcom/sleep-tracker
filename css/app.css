@@ -392,18 +392,22 @@ nav {
 }
 .chart-nav-label { font-size: 14px; font-weight: 600; color: var(--t1); }
 .chart-nav-btn {
-  background: var(--card2);
-  border: 1px solid var(--border);
-  color: var(--t2);
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--t1);
+  padding: 4px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color .15s;
+  transition: opacity .15s;
 }
-.chart-nav-btn:hover { color: var(--t1); }
+.chart-nav-btn:disabled { opacity: 0.25; cursor: default; }
+.chart-nav-btn:not(:disabled):hover { opacity: 0.65; }
+#dash-chart-wrapper { touch-action: pan-y; }
 
 .chart-summary {
   display: grid;

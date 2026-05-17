@@ -668,6 +668,108 @@ function weekLabel(mon, sun) {
   return `${fmt(mon)} – ${fmt(sun)}`;
 }
 
+// ── Sliding-window range helpers (dashboard) ───────────────
+// Returns {tab, from, to, label, days|months, startYear?, startMonth?}
+function getDashRange(tab, offset, shift) {
+  const now = new Date();
+  now.setHours(0,0,0,0);
+
+  if (tab === 'week') {
+    // Window ends at this Sunday + offset*7 + shift days. 7 days back from end.
+    const dow = now.getDay();                       // 0=Sun..6=Sat
+    const toSun = dow === 0 ? 0 : (7 - dow);
+    const end = new Date(now);
+    end.setDate(now.getDate() + toSun + offset * 7 + shift);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 6);
+    return { tab, from: toYMD(start), to: toYMD(end), label: _dateRangeLabel(start, end), days: 7 };
+  }
+
+  if (tab === 'month') {
+    // 30-day window ending at today + offset*30 + shift days.
+    const end = new Date(now);
+    end.setDate(now.getDate() + offset * 30 + shift);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 29);
+    return { tab, from: toYMD(start), to: toYMD(end), label: _dateRangeLabel(start, end), days: 30 };
+  }
+
+  // year: 12-month window ending at current month + offset*12 + shift months.
+  const endIdx   = now.getFullYear() * 12 + now.getMonth() + offset * 12 + shift;
+  const startIdx = endIdx - 11;
+  const endY = Math.floor(endIdx / 12);
+  const endM = ((endIdx % 12) + 12) % 12;
+  const sY   = Math.floor(startIdx / 12);
+  const sM   = ((startIdx % 12) + 12) % 12;
+  const startDate = new Date(sY,   sM,   1);
+  const endDate   = new Date(endY, endM + 1, 0);     // last day of end month
+  return {
+    tab,
+    from: toYMD(startDate), to: toYMD(endDate),
+    label: `${sY}年${sM+1}月 – ${endY}年${endM+1}月`,
+    months: 12,
+    startYear: sY, startMonth: sM,
+  };
+}
+
+function _dateRangeLabel(d1, d2) {
+  const same = d1.getFullYear() === d2.getFullYear();
+  const fmt  = d => `${d.getMonth()+1}/${d.getDate()}`;
+  const fmtY = d => `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  return same ? `${fmt(d1)} – ${fmt(d2)}` : `${fmtY(d1)} – ${fmtY(d2)}`;
+}
+
+function buildDashLabels(range) {
+  if (range.tab === 'year') {
+    const out = [];
+    for (let i = 0; i < range.months; i++) {
+      const m  = range.startMonth + i;
+      const y  = range.startYear + Math.floor(m / 12);
+      const mm = ((m % 12) + 12) % 12;
+      out.push((i === 0 || mm === 0) ? `${y}/${mm+1}` : `${mm+1}月`);
+    }
+    return out;
+  }
+  const out = [];
+  const start = new Date(range.from + 'T00:00:00');
+  for (let i = 0; i < range.days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    if (range.tab === 'week') {
+      const DAY = ['日','月','火','水','木','金','土'];
+      out.push(`${DAY[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`);
+    } else {
+      out.push(`${d.getMonth()+1}/${d.getDate()}`);
+    }
+  }
+  return out;
+}
+
+function eachDayOfRange(range, fn) {
+  const out = [];
+  const start = new Date(range.from + 'T00:00:00');
+  for (let i = 0; i < range.days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    out.push(fn(toYMD(d), i));
+  }
+  return out;
+}
+
+function eachMonthOfRange(range, fn) {
+  const out = [];
+  for (let i = 0; i < range.months; i++) {
+    const m  = range.startMonth + i;
+    const y  = range.startYear + Math.floor(m / 12);
+    const mm = ((m % 12) + 12) % 12;
+    const from = `${y}-${String(mm+1).padStart(2,'0')}-01`;
+    const last = new Date(y, mm+1, 0).getDate();
+    const to   = `${y}-${String(mm+1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+    out.push(fn(from, to, i));
+  }
+  return out;
+}
+
 function hexAlpha(hex, a) {
   const r = parseInt(hex.slice(1,3),16);
   const g = parseInt(hex.slice(3,5),16);
