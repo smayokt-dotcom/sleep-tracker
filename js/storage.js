@@ -16,6 +16,7 @@ const KEYS = {
 //   light_sleep_min:       number | null
 //   rem_sleep_min:         number | null
 //   awake_min:             number | null
+//   nap_min:               number | null   (nap duration in minutes)
 //   awake_count:           number | null   (times woken up)
 //   sleep_score:           number | null   (Huawei Health score 0-100)
 //   notes:                 string | null

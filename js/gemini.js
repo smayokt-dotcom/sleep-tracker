@@ -27,6 +27,7 @@ Fields:
 - deep_sleep_min: deep sleep minutes or null. Look for "深い睡眠" with a duration like "2時間28分".
 - light_sleep_min: light (shallow) sleep minutes or null. Look for "浅い睡眠" with a duration like "2時間51分".
 - rem_sleep_min: REM sleep minutes or null. Look for "レム睡眠" with a duration like "1時間19分".
+- nap_min: nap duration in minutes as integer, or null. Look for "仮眠 X時間XX分" in the line like "合計睡眠時間 7時間44分 | 仮眠 1時間6分". Convert using hours×60+minutes. If no nap is shown, return null.
 - awake_min: awake-during-night minutes or null.
 - awake_count: number of times the user woke up during the night as integer, or null. Look for values like "目覚め 3回", "覚醒回数", "Awakenings", "Woke up X times".
 - sleep_score: the overall sleep score as an integer, or null. It is displayed as a large bold number with "点" immediately after it (e.g. "82点" → 82, "75点" → 75). It typically appears in the lower portion of the screen, often accompanied by star ratings and text like "XX%のユーザーより上". IMPORTANT: do NOT use "深い睡眠の持続性: XX点" or any sub-category score — only the main top-level score. If you see a number like "82" displayed prominently with "点" next to it, that is the value to extract.
@@ -151,6 +152,7 @@ function normalizeExtracted(raw) {
   r.deep_sleep_min     = toIntOrNull(raw.deep_sleep_min);
   r.light_sleep_min    = toIntOrNull(raw.light_sleep_min);
   r.rem_sleep_min      = toIntOrNull(raw.rem_sleep_min);
+  r.nap_min            = toIntOrNull(raw.nap_min);
   r.awake_min          = toIntOrNull(raw.awake_min);
   r.awake_count        = toIntOrNull(raw.awake_count);
   r.sleep_score        = toIntOrNull(raw.sleep_score);

@@ -16,6 +16,7 @@ const C = {
   cyan:    '#00d4ff',
   green:   '#00e676',
   yellow:  '#ffd54f',
+  orange:  '#ff9800',
   red:     '#ff5252',
   grid:    'rgba(255,255,255,0.05)',
   bg:      'rgba(124,111,255,0.15)',
@@ -96,58 +97,97 @@ const Charts = {
   },
 
   // ── Duration bar chart (week / month) ────────────────────
-  renderDuration(canvasId, labels, values, { highlightIdx = -1 } = {}) {
+  renderDuration(canvasId, labels, values, { highlightIdx = -1, napValues = null } = {}) {
     this.destroy(canvasId);
     const ctx = this.getCtx(canvasId);
     if (!ctx) return;
 
-    const bgColors = values.map((_, i) =>
-      i === highlightIdx ? C.accentL : C.accent
-    );
-    const alphas = values.map((_, i) =>
-      i === highlightIdx ? 1 : 0.65
-    );
-
-    const chartVals = values.map(v => v ? +(v / 60).toFixed(2) : null);
-    const avg = _avgOf(chartVals);
-    const avgDs = _makeAvgDs(labels.length, avg,
+    const hasNap = napValues && napValues.some(v => v != null && v > 0);
+    const totalH = values.map(v => v != null ? +(v / 60).toFixed(2) : null);
+    const avg    = _avgOf(totalH);
+    const avgDs  = _makeAvgDs(labels.length, avg,
       avg != null ? formatDuration(Math.round(avg * 60)) : null, C.yellow);
+
+    let datasets;
+    if (hasNap) {
+      const nightH = values.map((v, i) => {
+        if (v == null) return null;
+        const nap = (napValues[i] ?? 0);
+        return +((v - nap) / 60).toFixed(2);
+      });
+      const napH = napValues.map(v => (v != null && v > 0) ? +(v / 60).toFixed(2) : null);
+      datasets = [
+        {
+          label: '夜間睡眠',
+          data: nightH,
+          backgroundColor: hexAlpha(C.accent, 0.75),
+          borderColor: C.accent,
+          borderWidth: 1.5,
+          borderRadius: 0,
+          borderSkipped: false,
+          stack: 'sleep',
+        },
+        {
+          label: '仮眠',
+          data: napH,
+          backgroundColor: hexAlpha(C.orange, 0.80),
+          borderColor: C.orange,
+          borderWidth: 1.5,
+          borderRadius: 4,
+          borderSkipped: false,
+          stack: 'sleep',
+        },
+        ...(avgDs ? [avgDs] : []),
+      ];
+    } else {
+      const bgColors = values.map((_, i) => i === highlightIdx ? C.accentL : C.accent);
+      const alphas   = values.map((_, i) => i === highlightIdx ? 1 : 0.65);
+      datasets = [
+        {
+          label: '睡眠時間',
+          data: totalH,
+          backgroundColor: bgColors.map((c, i) => hexAlpha(c, alphas[i])),
+          borderColor: bgColors,
+          borderWidth: 1.5,
+          borderRadius: 6,
+          borderSkipped: false,
+        },
+        ...(avgDs ? [avgDs] : []),
+      ];
+    }
 
     this._instances[canvasId] = new Chart(ctx, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: '睡眠時間',
-            data: chartVals,
-            backgroundColor: bgColors.map((c, i) => hexAlpha(c, alphas[i])),
-            borderColor: bgColors,
-            borderWidth: 1.5,
-            borderRadius: 6,
-            borderSkipped: false,
-          },
-          ...(avgDs ? [avgDs] : []),
-        ]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: { duration: 400 },
         layout: { padding: { right: 52 } },
         plugins: {
-          legend: { display: false },
+          legend: { display: hasNap, labels: { boxWidth: 12, padding: 12 } },
           tooltip: {
             callbacks: {
-              label: ctx => ctx.raw != null ? ` ${ctx.dataset.label === '平均' ? '平均 ' : ''}${formatDuration(Math.round(ctx.raw * 60))}` : '',
+              label: c => {
+                if (c.dataset._isAvg) return '';
+                return ` ${c.dataset.label}: ${c.raw != null ? formatDuration(Math.round(c.raw * 60)) : '--'}`;
+              },
+              footer: items => {
+                if (!hasNap) return '';
+                const sum = items
+                  .filter(c => !c.dataset._isAvg && c.raw != null)
+                  .reduce((a, c) => a + c.raw, 0);
+                return sum > 0 ? `合計: ${formatDuration(Math.round(sum * 60))}` : '';
+              },
             }
           }
         },
         scales: {
-          x: { grid: baseGridOpts(), ticks: baseTickOpts() },
+          x: { grid: baseGridOpts(), ticks: baseTickOpts(), stacked: hasNap },
           y: {
             grid: baseGridOpts(),
             ticks: { ...baseTickOpts(), callback: v => `${v}h`, stepSize: 1 },
+            stacked: hasNap,
             min: 0,
             suggestedMax: 10,
           }

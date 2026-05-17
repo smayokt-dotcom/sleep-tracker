@@ -229,6 +229,7 @@ function setExtractFields(data) {
   set('field-rem',         data?.rem_sleep_min   != null ? formatDuration(data.rem_sleep_min)   : '');
   set('field-awake-count',  data?.awake_count  != null ? data.awake_count  : '');
   set('field-sleep-score',  data?.sleep_score  != null ? data.sleep_score  : '');
+  set('field-nap',          data?.nap_min      != null ? formatDuration(data.nap_min) : '');
 }
 
 // 保存ボタンから呼ばれる（手動保存）
@@ -261,6 +262,7 @@ function buildRecordFromFields() {
     rem_sleep_min:      parseHHMM(document.getElementById('field-rem').value),
     awake_count:        parseInt(document.getElementById('field-awake-count').value)  || null,
     sleep_score:        parseInt(document.getElementById('field-sleep-score').value)  || null,
+    nap_min:            parseHHMM(document.getElementById('field-nap').value),
     awake_min:          null,
     notes:              null,
   };
@@ -508,7 +510,7 @@ function _renderChartsInner(ctx, st) {
   const rangeRecs = Storage.getByDateRange(range.from, range.to);
 
   // Build datasets
-  let labels, values, bedtimes, wakeTimes, deep, light, rem, awake, scores, awakeCounts;
+  let labels, values, bedtimes, wakeTimes, deep, light, rem, awake, scores, awakeCounts, napValues;
 
   if (tab === 'week') {
     const d = buildWeekData(records, range.from);
@@ -525,6 +527,12 @@ function _renderChartsInner(ctx, st) {
       const rec = records.find(r => r.date === toYMD(d2));
       return rec?.awake_count ?? null;
     });
+    napValues = labels.map((_, i) => {
+      const d2 = new Date(range.from + 'T00:00:00');
+      d2.setDate(d2.getDate() + i);
+      const rec = records.find(r => r.date === toYMD(d2));
+      return rec?.nap_min ?? null;
+    });
   } else if (tab === 'month') {
     const d = buildMonthData(records, range.year, range.month);
     ({ labels, values, bedtimes, wakeTimes } = d);
@@ -538,13 +546,18 @@ function _renderChartsInner(ctx, st) {
       const rec = records.find(r => r.date === `${range.year}-${String(range.month+1).padStart(2,'0')}-${dd}`);
       return rec?.awake_count ?? null;
     });
+    napValues = labels.map((_, i) => {
+      const dd = String(i + 1).padStart(2, '0');
+      const rec = records.find(r => r.date === `${range.year}-${String(range.month+1).padStart(2,'0')}-${dd}`);
+      return rec?.nap_min ?? null;
+    });
   } else {
     const d = buildYearData(records, range.year);
     labels = d.labels; values = d.avgValues;
     deep = d.deep; light = d.light; rem = d.rem; awake = d.awake;
     bedtimes = d.avgBedtimes; wakeTimes = d.avgWakeTimes;
     awakeCounts = d.avgAwakeCounts;
-    // 年: 月ごとの平均スコア
+    // 年: 月ごとの平均スコア・平均仮眠
     scores = labels.map((_, m) => {
       const from = `${range.year}-${String(m+1).padStart(2,'0')}-01`;
       const last = new Date(range.year, m + 1, 0).getDate();
@@ -553,6 +566,14 @@ function _renderChartsInner(ctx, st) {
       const ss   = recs.map(r => r.sleep_score ?? sleepScore(r)).filter(v => v != null);
       return ss.length ? Math.round(ss.reduce((a,b)=>a+b,0)/ss.length) : null;
     });
+    napValues = labels.map((_, m) => {
+      const from = `${range.year}-${String(m+1).padStart(2,'0')}-01`;
+      const last = new Date(range.year, m + 1, 0).getDate();
+      const to   = `${range.year}-${String(m+1).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+      const recs = records.filter(r => r.date >= from && r.date <= to);
+      const naps = recs.map(r => r.nap_min).filter(v => v != null && v > 0);
+      return naps.length ? Math.round(naps.reduce((a,b)=>a+b,0)/naps.length) : null;
+    });
   }
 
   // Render the right chart
@@ -560,7 +581,7 @@ function _renderChartsInner(ctx, st) {
     if (tab === 'year') {
       Charts.renderMonthlyAvg(ctx.canvas, labels, values);
     } else {
-      Charts.renderDuration(ctx.canvas, labels, values);
+      Charts.renderDuration(ctx.canvas, labels, values, { napValues });
     }
   } else if (type === 'bedtime') {
     Charts.renderBedtimes(ctx.canvas, labels, bedtimes, wakeTimes);
@@ -858,6 +879,7 @@ function openEditModal(id) {
   document.getElementById('edit-awake').value       = record.awake_min   != null ? formatDuration(record.awake_min) : '';
   document.getElementById('edit-awake-count').value  = record.awake_count  != null ? record.awake_count  : '';
   document.getElementById('edit-sleep-score').value  = record.sleep_score  != null ? record.sleep_score  : '';
+  document.getElementById('edit-nap').value           = record.nap_min      != null ? formatDuration(record.nap_min) : '';
 
   document.getElementById('edit-modal').classList.add('show');
 }
@@ -901,6 +923,7 @@ function commitEdit() {
     awake_min:          parseHHMM(document.getElementById('edit-awake').value) ?? current.awake_min,
     awake_count:        parseInt(document.getElementById('edit-awake-count').value)  || current.awake_count  || null,
     sleep_score:        parseInt(document.getElementById('edit-sleep-score').value)  || current.sleep_score  || null,
+    nap_min:            parseHHMM(document.getElementById('edit-nap').value) ?? current.nap_min ?? null,
   };
 
   // If the new date conflicts with a DIFFERENT record, ask to overwrite
