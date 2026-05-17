@@ -20,7 +20,10 @@ Fields:
 - date: "YYYY-MM-DD". IMPORTANT: if the screenshot shows only month/day (e.g. "4/23" or "4月23日"), use the year ${year} UNLESS the date would be in the future, in which case use ${year - 1}. Never guess a year more than 2 years in the past.
 - bedtime: "HH:MM" 24-hour (when the user fell asleep).
 - wake_time: "HH:MM" 24-hour (when the user woke up).
-- sleep_duration_min: NIGHTTIME sleep duration in minutes as integer. Read ONLY from the section labeled "夜間の睡眠" — the time shown directly below that heading in "X時間XX分" format (e.g. "6時間38分" → 398). Do NOT use "合計睡眠時間" (which includes naps) or any other total.
+- sleep_duration_min: total sleep duration in minutes as integer. Use the following priority:
+  1. If "合計睡眠時間" is present on screen (e.g. "合計睡眠時間 7時間44分"), use that value (it includes naps and gives the full picture).
+  2. If only "夜間の睡眠" is shown without "合計睡眠時間", use the "X時間XX分" value directly below "夜間の睡眠".
+  Convert "X時間XX分" to minutes: hours×60 + minutes (e.g. "7時間44分" → 464, "6時間38分" → 398).
 - deep_sleep_min: deep sleep minutes or null. Look for "深い睡眠" with a duration like "2時間28分".
 - light_sleep_min: light (shallow) sleep minutes or null. Look for "浅い睡眠" with a duration like "2時間51分".
 - rem_sleep_min: REM sleep minutes or null. Look for "レム睡眠" with a duration like "1時間19分".
@@ -30,10 +33,10 @@ Fields:
 
 Rules:
 - 24-hour format for times. Bedtime after midnight stays as-is (e.g. "00:30").
-- For sleep_duration_min, always prefer the "夜間の睡眠" value, never the "合計睡眠時間" total.
+- For sleep_duration_min, prefer "合計睡眠時間" when present; fall back to "夜間の睡眠" only if 合計 is absent.
 - Return ONLY the JSON object, no markdown, no explanation.
 
-Example: {"date":"${year}-03-15","bedtime":"23:20","wake_time":"07:05","sleep_duration_min":398,"deep_sleep_min":98,"light_sleep_min":267,"rem_sleep_min":100,"awake_min":12,"awake_count":2,"sleep_score":82}
+Example: {"date":"${year}-03-15","bedtime":"23:20","wake_time":"07:05","sleep_duration_min":464,"deep_sleep_min":98,"light_sleep_min":267,"rem_sleep_min":100,"awake_min":12,"awake_count":2,"sleep_score":82}
 `.trim();
 }
 

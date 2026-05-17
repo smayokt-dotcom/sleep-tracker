@@ -654,9 +654,9 @@ function _renderChartsInner(ctx, st) {
   } else if (type === 'score') {
     const ss = rangeRecs.map(r => sleepScore(r)).filter(v => v != null);
     const avg = ss.length ? Math.round(_avg(ss)) : null;
-    sumLbl1 = '平均';  sumVal1 = avg           != null ? avg           + 'pt' : '--';
-    sumLbl2 = '最高';  sumVal2 = _max(ss)      != null ? _max(ss)      + 'pt' : '--';
-    sumLbl3 = '最低';  sumVal3 = _min(ss)      != null ? _min(ss)      + 'pt' : '--';
+    sumLbl1 = '平均';  sumVal1 = avg           != null ? avg           + '点' : '--';
+    sumLbl2 = '最高';  sumVal2 = _max(ss)      != null ? _max(ss)      + '点' : '--';
+    sumLbl3 = '最低';  sumVal3 = _min(ss)      != null ? _min(ss)      + '点' : '--';
 
   } else if (type === 'awake') {
     const ac = rangeRecs.map(r => r.awake_count).filter(v => v != null);
